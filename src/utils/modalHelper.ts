@@ -20,17 +20,9 @@ export class ModalHelper {
             .setValue(userId)
             .setRequired(true);
 
-        const indicacaoInput = new TextInputBuilder()
-            .setCustomId('quem_indicou')
-            .setLabel('Quem te indicou?')
-            .setStyle(TextInputStyle.Short)
-            .setPlaceholder('Nome ou ID de quem indicou (Opcional)')
-            .setRequired(false);
-
         modal.addComponents(
             new ActionRowBuilder<TextInputBuilder>().addComponents(nomeInput),
-            new ActionRowBuilder<TextInputBuilder>().addComponents(idInput),
-            new ActionRowBuilder<TextInputBuilder>().addComponents(indicacaoInput)
+            new ActionRowBuilder<TextInputBuilder>().addComponents(idInput)
         );
 
         return modal;
