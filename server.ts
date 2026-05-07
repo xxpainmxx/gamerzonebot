@@ -70,8 +70,13 @@ const start = async () => {
 
     try {
         await client.login(process.env.DISCORD_TOKEN);
-    } catch (error) {
-        console.error('[ERRO] Falha ao logar no Discord:', error);
+    } catch (error: any) {
+        if (error.message.includes('disallowed intents')) {
+            console.error('\n[❌ ERRO CRÍTICO] O Bot não tem permissão para acessar Membros ou Conteúdo de Mensagens!');
+            console.error('👉 Verifique se você ativou "SERVER MEMBERS INTENT" e "MESSAGE CONTENT INTENT" no Discord Developer Portal (aba Bot).\n');
+        } else {
+            console.error('[ERRO] Falha ao logar no Discord:', error);
+        }
     }
 };
 

@@ -1,15 +1,15 @@
 {
   "prefix": "/",
-  "guildId": "SEU_GUILD_ID",
-  "clientId": "SEU_CLIENT_ID",
+  "guildId": "881891988226600980",
+  "clientId": "1501942989470306414",
   "channels": {
-    "welcome": "ID_CANAL_BOAS_VINDAS",
-    "leave": "ID_CANAL_SAIDA",
-    "register": "ID_CANAL_REGISTRO_PENDENTE",
-    "logs": "ID_CANAL_LOGS"
+    "welcome": "1501955321046896650",
+    "leave": "1501955499120132218",
+    "register": "1501955888263725146",
+    "logs": "1501955979204366336"
   },
   "roles": {
-    "registered": "ID_CARGO_REGISTRADO"
+    "registered": "912476180555391006"
   },
   "colors": {
     "main": "#5865F2",

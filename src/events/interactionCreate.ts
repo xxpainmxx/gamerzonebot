@@ -22,6 +22,9 @@ export default {
         // 2. Submissão de Modal
         if (interaction.isModalSubmit()) {
             if (interaction.customId === 'registro_modal') {
+                // Garantir resposta rápida ao Discord
+                await interaction.deferReply({ ephemeral: true }).catch(() => null);
+
                 const nome = interaction.fields.getTextInputValue('nome_completo');
                 const discordId = interaction.fields.getTextInputValue('id_discord');
                 const indicacao = interaction.fields.getTextInputValue('quem_indicou') || 'Ninguém';
@@ -29,7 +32,7 @@ export default {
                 // Verificar se já está registrado ou pendente
                 const status = await db.get(`registro_${interaction.user.id}`);
                 if (status) {
-                    return interaction.reply({ content: 'Você já possui um registro ou pedido pendente!', ephemeral: true });
+                    return interaction.editReply({ content: 'Você já possui um registro ou pedido pendente!' });
                 }
 
                 // Salvar dados temporários no DB
@@ -38,7 +41,8 @@ export default {
                 // Embed para o canal de aprovação
                 const canalAprovacao = interaction.client.channels.cache.get(config.channels.register) as TextChannel;
                 if (!canalAprovacao) {
-                    return interaction.reply({ content: 'Erro: Canal de aprovação não configurado corretamente.', ephemeral: true });
+                    console.error(`[ERRO] Canal de aprovação não encontrado (ID: ${config.channels.register})`);
+                    return interaction.editReply({ content: 'Erro interno: Canal de aprovação não configurado pela Staff.' });
                 }
 
                 const embed = new EmbedBuilder()
@@ -66,9 +70,13 @@ export default {
                         .setEmoji('❌')
                 );
 
-                await canalAprovacao.send({ embeds: [embed], components: [row] });
-
-                await interaction.reply({ content: 'Seu formulário foi enviado com sucesso! Aguarde a aprovação da staff.', ephemeral: true });
+                try {
+                    await canalAprovacao.send({ embeds: [embed], components: [row] });
+                    await interaction.editReply({ content: 'Seu formulário foi enviado com sucesso! Aguarde a aprovação da staff.' });
+                } catch (error: any) {
+                    console.error(`[ERRO] Falha ao enviar para o canal de aprovação: ${error.message}`);
+                    await interaction.editReply({ content: 'Ocorreu um erro ao enviar seu registro. Contate um administrador.' });
+                }
             }
         }
 
@@ -77,18 +85,23 @@ export default {
             const [action, userId] = interaction.customId.split('_');
             if (action !== 'aprovar' && action !== 'reprovar') return;
 
+            // Diferir a atualização para dar tempo ao Canvas
+            try {
+                await interaction.deferUpdate().catch(() => null);
+            } catch (e) {}
+
             // Verificar permissões (Manage Roles)
             if (!(interaction.member as any).permissions.has('ManageRoles')) {
-                return interaction.reply({ content: 'Você não tem permissão para gerenciar registros!', ephemeral: true });
+                return interaction.followUp({ content: 'Você não tem permissão para gerenciar registros!', ephemeral: true });
             }
 
             const pendente = await db.get(`pendente_${userId}`);
             if (!pendente) {
-                return interaction.reply({ content: 'Dados do registro não encontrados ou já processados.', ephemeral: true });
+                return interaction.followUp({ content: 'Dados do registro não encontrados ou já processados.', ephemeral: true });
             }
 
             const targetUser = await interaction.client.users.fetch(userId).catch(() => null);
-            if (!targetUser) return interaction.reply({ content: 'Usuário não encontrado.', ephemeral: true });
+            if (!targetUser) return interaction.followUp({ content: 'Usuário não encontrado no Discord.', ephemeral: true });
 
             if (action === 'aprovar') {
                 // Lógica de Aprovação
@@ -104,7 +117,11 @@ export default {
                 const member = interaction.guild?.members.cache.get(userId);
                 if (member) {
                     const role = interaction.guild?.roles.cache.get(config.roles.registered);
-                    if (role) await member.roles.add(role).catch(console.error);
+                    if (role) {
+                        await member.roles.add(role).catch(err => console.error(`[ERRO] Ao dar cargo: ${err.message}`));
+                    } else {
+                        console.warn(`[AVISO] Cargo de registro (ID: ${config.roles.registered}) não encontrado no servidor.`);
+                    }
                 }
 
                 // Gerar Card Canvas
@@ -117,13 +134,15 @@ export default {
                     await logChannel.send({ 
                         content: `✅ Registro de **${pendente.nome}** (${userId}) aprovado por ${interaction.user.tag}`,
                         files: [attachment]
-                    });
+                    }).catch(err => console.error(`[ERRO] Ao enviar log: ${err.message}`));
+                } else {
+                    console.warn(`[AVISO] Canal de logs (ID: ${config.channels.logs}) não encontrado.`);
                 }
 
                 // Enviar DM
                 await targetUser.send({ content: `Parabéns! Seu registro em **${interaction.guild?.name}** foi aprovado!`, files: [attachment] }).catch(() => null);
 
-                await interaction.update({ content: `✅ Registro aprovado por ${interaction.user.tag}`, embeds: [], components: [] });
+                await interaction.editReply({ content: `✅ Registro aprovado por ${interaction.user.tag}`, embeds: [], components: [] });
 
             } else {
                 // Lógica de Reprovação
@@ -137,12 +156,12 @@ export default {
                     await logChannel.send({ 
                         content: `❌ Registro de **${pendente.nome}** (${userId}) reprovado por ${interaction.user.tag}`,
                         files: [attachment]
-                    });
+                    }).catch(err => console.error(`[ERRO] Ao enviar log: ${err.message}`));
                 }
 
                 await targetUser.send({ content: `Lamentamos, seu registro em **${interaction.guild?.name}** foi reprovado pela staff.`, files: [attachment] }).catch(() => null);
 
-                await interaction.update({ content: `❌ Registro reprovado por ${interaction.user.tag}`, embeds: [], components: [] });
+                await interaction.editReply({ content: `❌ Registro reprovado por ${interaction.user.tag}`, embeds: [], components: [] });
             }
         }
     },
