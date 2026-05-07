@@ -2,10 +2,17 @@ import { Events, Interaction, EmbedBuilder, ActionRowBuilder, ButtonBuilder, But
 import db from '../database/db.ts';
 import config from '../config/config.json' assert { type: 'json' };
 import { CanvasHelper } from '../utils/canvasHelper.ts';
+import { ModalHelper } from '../utils/modalHelper.ts';
 
 export default {
     name: Events.InteractionCreate,
     async execute(interaction: Interaction) {
+        // 0. Botão de Abrir Registro (Início)
+        if (interaction.isButton() && interaction.customId === 'open_register_modal') {
+            const modal = ModalHelper.createRegisterModal(interaction.user.id);
+            return await interaction.showModal(modal);
+        }
+
         // 1. Comando Slash
         if (interaction.isChatInputCommand()) {
             const command = (interaction.client as any).commands.get(interaction.commandName);
@@ -14,8 +21,12 @@ export default {
             try {
                 await command.execute(interaction);
             } catch (error) {
-                console.error(error);
-                await interaction.reply({ content: 'Ocorreu um erro ao executar este comando!', ephemeral: true });
+                console.error(`[ERRO] Comando ${interaction.commandName}:`, error);
+                if (interaction.replied || interaction.deferred) {
+                    await interaction.followUp({ content: 'Ocorreu um erro ao executar este comando!', ephemeral: true }).catch(() => null);
+                } else {
+                    await interaction.reply({ content: 'Ocorreu um erro ao executar este comando!', ephemeral: true }).catch(() => null);
+                }
             }
         }
 
@@ -23,7 +34,13 @@ export default {
         if (interaction.isModalSubmit()) {
             if (interaction.customId === 'registro_modal') {
                 // Garantir resposta rápida ao Discord
-                await interaction.deferReply({ ephemeral: true }).catch(() => null);
+                try {
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.deferReply({ ephemeral: true });
+                    }
+                } catch (e) {
+                    return console.error('[ERRO] Ao deferir modal:', e);
+                }
 
                 const nome = interaction.fields.getTextInputValue('nome_completo');
                 const discordId = interaction.fields.getTextInputValue('id_discord');
@@ -85,10 +102,14 @@ export default {
             const [action, userId] = interaction.customId.split('_');
             if (action !== 'aprovar' && action !== 'reprovar') return;
 
-            // Diferir a atualização para dar tempo ao Canvas
+            // Diferir a atualização IMEDIATAMENTE
             try {
-                await interaction.deferUpdate().catch(() => null);
-            } catch (e) {}
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.deferUpdate();
+                }
+            } catch (e) {
+                return console.error('[ERRO] Ao deferir botão:', e);
+            }
 
             // Verificar permissões (Manage Roles)
             if (!(interaction.member as any).permissions.has('ManageRoles')) {

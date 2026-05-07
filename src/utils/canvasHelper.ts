@@ -104,4 +104,68 @@ export class CanvasHelper {
 
         return canvas.toBuffer();
     }
+
+    /**
+     * Gera um banner moderno para o sistema de registro.
+     */
+    static async createRegisterBanner(guildName: string, botAvatarUrl: string): Promise<Buffer> {
+        const width = 1000;
+        const height = 400;
+        const canvas = createCanvas(width, height);
+        const ctx = canvas.getContext('2d');
+
+        // Fundo com padrão moderno
+        const gradient = ctx.createLinearGradient(0, 0, width, height);
+        gradient.addColorStop(0, '#1a1a2e');
+        gradient.addColorStop(1, '#16213e');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+
+        // Grade decorativa
+        ctx.strokeStyle = 'rgba(88, 101, 242, 0.05)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < width; i += 40) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i, height);
+            ctx.stroke();
+        }
+        for (let j = 0; j < height; j += 40) {
+            ctx.beginPath();
+            ctx.moveTo(0, j);
+            ctx.lineTo(width, j);
+            ctx.stroke();
+        }
+
+        // Círculo Neon central
+        ctx.shadowColor = '#5865f2';
+        ctx.shadowBlur = 30;
+        ctx.strokeStyle = '#5865f2';
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.arc(width / 2, 140, 90, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // Bot Avatar
+        const avatar = await loadImage(botAvatarUrl);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(width / 2, 140, 80, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(avatar, (width / 2) - 80, 60, 160, 160);
+        ctx.restore();
+
+        // Texto
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 50px sans-serif';
+        ctx.fillText(guildName.toUpperCase(), width / 2, 300);
+
+        ctx.fillStyle = '#5865f2';
+        ctx.font = 'bold 35px sans-serif';
+        ctx.fillText('SISTEMA DE REGISTRO', width / 2, 350);
+
+        return canvas.toBuffer();
+    }
 }

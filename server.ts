@@ -41,10 +41,19 @@ const loadHandlers = async () => {
     const eventFiles = readdirSync(eventsPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
     for (const file of eventFiles) {
         const { default: event } = await import(`./src/events/${file}`);
+        const execute = async (...args: any[]) => {
+            try {
+                await event.execute(...args);
+            } catch (error: any) {
+                console.error(`[ERRO CRÍTICO] Falha ao executar evento ${event.name}:`, error);
+                // Evitar crash por unhandled error
+            }
+        };
+
         if (event.once) {
-            client.once(event.name, (...args) => event.execute(...args));
+            client.once(event.name, execute);
         } else {
-            client.on(event.name, (...args) => event.execute(...args));
+            client.on(event.name, execute);
         }
     }
 

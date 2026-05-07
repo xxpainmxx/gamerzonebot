@@ -1,11 +1,15 @@
 import { Events, Client, REST, Routes } from 'discord.js';
 import config from '../config/config.json' assert { type: 'json' };
+import { RegistrationSystem } from '../systems/registrationSystem.ts';
 
 export default {
     name: Events.ClientReady,
     once: true,
     async execute(client: Client) {
         console.log(`[BOT] Logado como ${client.user?.tag}`);
+
+        // Inicializar Sistema de Mensagem de Registro
+        await RegistrationSystem.init(client).catch(err => console.error('[ERRO] Ao iniciar sistema de registro:', err));
 
         // Registrar comandos Slash
         const commands = (client as any).commands.map((cmd: any) => cmd.data.toJSON());
