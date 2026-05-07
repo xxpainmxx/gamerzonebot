@@ -1,0 +1,19 @@
+{
+  "prefix": "/",
+  "guildId": "SEU_GUILD_ID",
+  "clientId": "SEU_CLIENT_ID",
+  "channels": {
+    "welcome": "ID_CANAL_BOAS_VINDAS",
+    "leave": "ID_CANAL_SAIDA",
+    "register": "ID_CANAL_REGISTRO_PENDENTE",
+    "logs": "ID_CANAL_LOGS"
+  },
+  "roles": {
+    "registered": "ID_CARGO_REGISTRADO"
+  },
+  "colors": {
+    "main": "#5865F2",
+    "success": "#57F287",
+    "error": "#ED4245"
+  }
+}
