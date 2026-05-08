@@ -47,17 +47,39 @@ export class LiveManager {
         const hasRole = member.roles.cache.has(liveRole.id);
 
         if (isStreaming && !hasRole) {
+            // Verificar se o bot pode gerenciar este membro e este cargo
+            if (!member.guild.members.me?.permissions.has('ManageRoles')) {
+                console.error('[LIVE] O bot não tem a permissão "Gerenciar Cargos"!');
+                return;
+            }
+
+            if (liveRole.position >= (member.guild.members.me?.roles.highest.position || 0)) {
+                console.error(`[LIVE] O cargo ${liveRole.name} está ACIMA do cargo do bot na hierarquia!`);
+                return;
+            }
+
+            if (!member.manageable) {
+                console.error(`[LIVE] O usuário ${member.user.tag} está ACIMA do bot na hierarquia e não pode ser editado.`);
+                return;
+            }
+
             try {
                 await member.roles.add(liveRole);
                 this.logLiveEvent(member, 'START');
-            } catch (e) {
-                console.error(`[LIVE] Erro ao adicionar cargo em ${member.user.tag}:`, e);
+            } catch (e: any) {
+                if (e.code === 50013) {
+                    console.error(`[LIVE] Falha de permissão ao adicionar cargo em ${member.user.tag}. Certifique-se de que o cargo do bot esteja ACIMA do cargo de Live na hierarquia do servidor.`);
+                } else {
+                    console.error(`[LIVE] Erro ao adicionar cargo em ${member.user.tag}:`, e);
+                }
             }
         } else if (!isStreaming && hasRole) {
+            if (!member.manageable) return;
+
             try {
                 await member.roles.remove(liveRole);
                 this.logLiveEvent(member, 'STOP');
-            } catch (e) {
+            } catch (e: any) {
                 console.error(`[LIVE] Erro ao remover cargo de ${member.user.tag}:`, e);
             }
         }
