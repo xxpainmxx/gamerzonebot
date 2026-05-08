@@ -18,13 +18,16 @@ export class RegistrationSystem {
         // Recuperar ID da última mensagem enviada
         const lastMessageId = await db.get('register_main_message_id');
 
-        // Se existir, tentar apagar a antiga
+        // Verificar se a mensagem ainda existe no canal
         if (lastMessageId) {
             try {
-                const oldMsg = await channel.messages.fetch(lastMessageId).catch(() => null);
-                if (oldMsg) await oldMsg.delete();
+                const existingMsg = await channel.messages.fetch(lastMessageId).catch(() => null);
+                if (existingMsg) {
+                    console.log(`[SISTEMA] Mensagem de registro já existe no canal #${channel.name} (fixa).`);
+                    return; // Mensagem já existe, não faz nada
+                }
             } catch (e) {
-                console.error('[ERRO] Ao apagar mensagem antiga de registro:', e);
+                console.error('[ERRO] Ao verificar mensagem de registro:', e);
             }
         }
 

@@ -66,6 +66,21 @@ export default {
             }
         }
 
+        // --- SISTEMA DE LIVE (INTERAÇÕES) ---
+        if (interaction.isButton() && interaction.customId === 'toggle_live_system') {
+            try {
+                const current = await db.get('live_system_enabled') ?? config.liveSystem.enabled;
+                await db.set('live_system_enabled', !current);
+                return (interaction as any).update({ content: `✅ Sistema de Live ${!current ? 'ATIVADO' : 'DESATIVADO'}!`, embeds: [], components: [] }).catch(() => null);
+            } catch (e) {
+                console.error('[ERRO] Ao alternar sistema de live:', e);
+            }
+        }
+
+        if (interaction.isButton() && interaction.customId === 'set_live_role') {
+            return (interaction as any).reply({ content: '💡 **Dica:** Atualmente você pode definir o ID do cargo diretamente no arquivo `config.json` (campo `roles.live`). Em breve teremos suporte para seleção via menu!', ephemeral: true }).catch(() => null);
+        }
+
         // 2. Botão "Sem Indicação"
         if (interaction.isButton() && interaction.customId === 'registro_sem_indicacao') {
             try {
