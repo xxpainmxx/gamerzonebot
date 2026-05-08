@@ -27,11 +27,16 @@ export class LiveManager {
         const liveRole = guild.roles.cache.get(liveRoleId);
         if (!liveRole) return;
 
-        // Buscar membros monitorados (opcional: ou todos que tenham cargo de streamer)
-        // Por padrão, verificaremos todos os membros visíveis no cache de presença
-        guild.members.cache.forEach(async (member: GuildMember) => {
-            await this.updateMemberLiveStatus(member, liveRole);
-        });
+        // Buscar lista oficial de streamers
+        const authorizedStreamers = await db.get(`streamers_${guild.id}`) || [];
+        if (authorizedStreamers.length === 0) return; // Se a lista estiver vazia, não monitora ninguém (ou opcionalmente monitora todos)
+
+        for (const streamerId of authorizedStreamers) {
+            const member = await guild.members.fetch(streamerId).catch(() => null);
+            if (member) {
+                await this.updateMemberLiveStatus(member, liveRole);
+            }
+        }
     }
 
     /**

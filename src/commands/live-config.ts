@@ -29,7 +29,12 @@ export default {
                 .setCustomId('set_live_role')
                 .setLabel('Configurar Cargo')
                 .setStyle(ButtonStyle.Primary)
-                .setEmoji('🛡️')
+                .setEmoji('🛡️'),
+            new ButtonBuilder()
+                .setCustomId('manage_streamers')
+                .setLabel('Gerenciar Streamers')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('👥')
         );
 
         await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });

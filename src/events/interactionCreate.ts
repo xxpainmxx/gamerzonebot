@@ -7,19 +7,66 @@ import { ModalHelper } from '../utils/modalHelper.ts';
 export default {
     name: Events.InteractionCreate,
     async execute(interaction: Interaction) {
-        // 0. Botão de "Fazer Registro" ou Comando Slash /registro
-        if (
-            (interaction.isButton() && interaction.customId === 'open_register_modal') ||
-            (interaction.isChatInputCommand() && interaction.commandName === 'registro')
-        ) {
+        // 1. Comando Slash Genérico
+        if (interaction.isChatInputCommand()) {
+            // Se for o comando /registro, usamos a lógica customizada de indicação
+            if (interaction.commandName === 'registro') {
+                try {
+                    const status = await db.get(`registro_${interaction.user.id}`);
+                    if (status) {
+                        return interaction.reply({ content: 'Você já possui um registro aprovado!', ephemeral: true }).catch(() => null);
+                    }
+
+                    const select = new UserSelectMenuBuilder()
+                        .setCustomId('selecionar_indicacao')
+                        .setPlaceholder('Selecione quem te indicou (ou clique no botão abaixo)')
+                        .setMinValues(1)
+                        .setMaxValues(1);
+
+                    const rowSelect = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(select);
+                    const rowButton = new ActionRowBuilder<ButtonBuilder>().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('registro_sem_indicacao')
+                            .setLabel('Ninguém me indicou')
+                            .setStyle(ButtonStyle.Secondary)
+                    );
+
+                    return await interaction.reply({
+                        content: '✨ **ETAPA 1:** Quem te indicou para o servidor?',
+                        components: [rowSelect, rowButton],
+                        ephemeral: true
+                    }).catch((e: any) => console.error('[ERRO] Ao iniciar indicação:', e));
+                } catch (e) {
+                    console.error('[ERRO] No fluxo inicial de registro:', e);
+                }
+                return;
+            }
+
+            // Para outros comandos, usa o handler genérico
+            const command = (interaction.client as any).commands.get(interaction.commandName);
+            if (!command) return;
+
             try {
-                // Verificar se já está registrado
+                await command.execute(interaction);
+            } catch (error) {
+                console.error(`[ERRO] Comando ${interaction.commandName}:`, error);
+                if (interaction.replied || interaction.deferred) {
+                    await interaction.followUp({ content: 'Ocorreu um erro ao executar este comando!', ephemeral: true }).catch(() => null);
+                } else {
+                    await interaction.reply({ content: 'Ocorreu um erro ao executar este comando!', ephemeral: true }).catch(() => null);
+                }
+            }
+            return;
+        }
+
+        // 2. Botão de "Fazer Registro" (Landing Page)
+        if (interaction.isButton() && interaction.customId === 'open_register_modal') {
+            try {
                 const status = await db.get(`registro_${interaction.user.id}`);
                 if (status) {
-                    return (interaction as any).reply({ content: 'Você já possui um registro aprovado!', ephemeral: true }).catch(() => null);
+                    return interaction.reply({ content: 'Você já possui um registro aprovado!', ephemeral: true }).catch(() => null);
                 }
 
-                // Envia o Menu de Seleção de Usuário para Indicação
                 const select = new UserSelectMenuBuilder()
                     .setCustomId('selecionar_indicacao')
                     .setPlaceholder('Selecione quem te indicou (ou clique no botão abaixo)')
@@ -34,7 +81,7 @@ export default {
                         .setStyle(ButtonStyle.Secondary)
                 );
 
-                return await (interaction as any).reply({
+                return await interaction.reply({
                     content: '✨ **ETAPA 1:** Quem te indicou para o servidor?',
                     components: [rowSelect, rowButton],
                     ephemeral: true
@@ -79,6 +126,61 @@ export default {
 
         if (interaction.isButton() && interaction.customId === 'set_live_role') {
             return (interaction as any).reply({ content: '💡 **Dica:** Atualmente você pode definir o ID do cargo diretamente no arquivo `config.json` (campo `roles.live`). Em breve teremos suporte para seleção via menu!', ephemeral: true }).catch(() => null);
+        }
+
+        if (interaction.isButton() && interaction.customId === 'manage_streamers') {
+            try {
+                const streamers = await db.get(`streamers_${interaction.guildId}`) || [];
+                
+                const embed = new EmbedBuilder()
+                    .setTitle('👥 Gerenciamento de Streamers')
+                    .setDescription(`Aqui você pode adicionar ou remover os criadores de conteúdo que serão monitorados pelo bot.
+                    
+**Usuários Monitorados:** ${streamers.length > 0 ? streamers.map((id: string) => `<@${id}>`).join(', ') : 'Nenhum'}`)
+                    .setColor(config.colors.main as any);
+
+                const addSelect = new UserSelectMenuBuilder()
+                    .setCustomId('add_streamer_live')
+                    .setPlaceholder('Selecione um usuário para ADICIONAR')
+                    .setMinValues(1)
+                    .setMaxValues(1);
+
+                const rowAdd = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(addSelect);
+
+                const rowButtons = new ActionRowBuilder<ButtonBuilder>().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('clear_streamers')
+                        .setLabel('Limpar Lista')
+                        .setStyle(ButtonStyle.Danger)
+                );
+
+                return interaction.reply({ embeds: [embed], components: [rowAdd, rowButtons], ephemeral: true }).catch(() => null);
+            } catch (e) {
+                console.error('[ERRO] Ao abrir gerenciamento de streamers:', e);
+            }
+        }
+
+        if (interaction.isUserSelectMenu() && interaction.customId === 'add_streamer_live') {
+            try {
+                const targetId = interaction.values[0];
+                let streamers = await db.get(`streamers_${interaction.guildId}`) || [];
+                
+                if (streamers.includes(targetId)) {
+                    return interaction.reply({ content: '❌ Este usuário já está na lista!', ephemeral: true }).catch(() => null);
+                }
+
+                streamers.push(targetId);
+                await db.set(`streamers_${interaction.guildId}`, streamers);
+
+                return interaction.reply({ content: `✅ <@${targetId}> foi adicionado à lista de monitoramento de Live!`, ephemeral: true }).catch(() => null);
+            } catch (e) {
+                console.error('[ERRO] Ao adicionar streamer:', e);
+            }
+        }
+
+        if (interaction.isButton() && interaction.customId === 'clear_streamers') {
+            await db.delete(`streamers_${interaction.guildId}`);
+            return interaction.reply({ content: '🗑️ Lista de streamers limpa com sucesso!', ephemeral: true }).catch(() => null);
         }
 
         // 2. Botão "Sem Indicação"

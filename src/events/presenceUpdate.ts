@@ -17,6 +17,10 @@ export default {
         const liveRole = newPresence.guild.roles.cache.get(liveRoleId);
         if (!liveRole) return;
 
+        // Verificar se usuário está na lista autorizada
+        const authorizedStreamers = await db.get(`streamers_${newPresence.guild.id}`) || [];
+        if (!authorizedStreamers.includes(newPresence.member.id)) return;
+
         await LiveManager.updateMemberLiveStatus(newPresence.member, liveRole);
     }
 };
