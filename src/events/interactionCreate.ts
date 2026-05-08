@@ -208,6 +208,17 @@ export default {
             await interaction.deferReply({ ephemeral: true }).catch(() => null);
 
             try {
+                // Verificar se já está registrado ou tem pendência
+                const status = await db.get(`registro_${interaction.user.id}`);
+                if (status) {
+                    return interaction.editReply({ content: 'Você já possui um registro aprovado!' }).catch(() => null);
+                }
+
+                const pendenteCheck = await db.get(`pendente_${interaction.user.id}`);
+                if (pendenteCheck) {
+                    return interaction.editReply({ content: '⏳ Você já possui uma solicitação pendente aguardando aprovação.' }).catch(() => null);
+                }
+
                 const indicatorId = interaction.customId.split(':')[1];
                 const nome = interaction.fields.getTextInputValue('nome_completo');
                 const discordId = interaction.fields.getTextInputValue('id_discord');
@@ -221,11 +232,6 @@ export default {
                         indicacaoText = indicatorUser.tag;
                         indicatorMention = `<@${indicatorId}>`;
                     }
-                }
-
-                const status = await db.get(`registro_${interaction.user.id}`);
-                if (status) {
-                    return interaction.editReply({ content: 'Você já possui um registro aprovado!' }).catch(() => null);
                 }
 
                 await db.set(`pendente_${interaction.user.id}`, { 
@@ -275,6 +281,7 @@ export default {
                     await interaction.editReply({ content: 'Ocorreu um erro ao processar seu registro.' }).catch(() => null);
                 }
             }
+            return;
         }
 
         // 4. Botões de Aprovação/Reprovação (Staff)
@@ -349,6 +356,7 @@ export default {
             } catch (error) {
                 console.error('[ERRO] No processamento de botões staff:', error);
             }
+            return;
         }
     },
 };
