@@ -10,7 +10,6 @@ export default {
         console.log(`[BOT] Logado como ${client.user?.tag}`);
 
         // Inicializar Sistemas
-        await RegistrationSystem.init(client).catch(err => console.error('[ERRO] Ao iniciar sistema de registro:', err));
         await LiveManager.startMonitoring(client);
 
         // Registrar comandos Slash

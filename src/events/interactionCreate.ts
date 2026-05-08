@@ -12,9 +12,11 @@ export default {
             // Se for o comando /registro, usamos a lógica customizada de indicação
             if (interaction.commandName === 'registro') {
                 try {
+                    await interaction.deferReply({ ephemeral: true }).catch(() => null);
+
                     const status = await db.get(`registro_${interaction.user.id}`);
                     if (status) {
-                        return interaction.reply({ content: 'Você já possui um registro aprovado!', ephemeral: true }).catch(() => null);
+                        return interaction.editReply({ content: 'Você já possui um registro aprovado!' }).catch(() => null);
                     }
 
                     const select = new UserSelectMenuBuilder()
@@ -31,10 +33,9 @@ export default {
                             .setStyle(ButtonStyle.Secondary)
                     );
 
-                    return await interaction.reply({
+                    return await interaction.editReply({
                         content: '✨ **ETAPA 1:** Quem te indicou para o servidor?',
-                        components: [rowSelect, rowButton],
-                        ephemeral: true
+                        components: [rowSelect, rowButton]
                     }).catch((e: any) => console.error('[ERRO] Ao iniciar indicação:', e));
                 } catch (e) {
                     console.error('[ERRO] No fluxo inicial de registro:', e);
@@ -62,9 +63,11 @@ export default {
         // 2. Botão de "Fazer Registro" (Landing Page)
         if (interaction.isButton() && interaction.customId === 'open_register_modal') {
             try {
+                await interaction.deferReply({ ephemeral: true }).catch(() => null);
+
                 const status = await db.get(`registro_${interaction.user.id}`);
                 if (status) {
-                    return interaction.reply({ content: 'Você já possui um registro aprovado!', ephemeral: true }).catch(() => null);
+                    return interaction.editReply({ content: 'Você já possui um registro aprovado!' }).catch(() => null);
                 }
 
                 const select = new UserSelectMenuBuilder()
@@ -81,14 +84,14 @@ export default {
                         .setStyle(ButtonStyle.Secondary)
                 );
 
-                return await interaction.reply({
+                return await interaction.editReply({
                     content: '✨ **ETAPA 1:** Quem te indicou para o servidor?',
-                    components: [rowSelect, rowButton],
-                    ephemeral: true
+                    components: [rowSelect, rowButton]
                 }).catch((e: any) => console.error('[ERRO] Ao iniciar indicação:', e));
             } catch (e) {
                 console.error('[ERRO] No fluxo inicial de registro:', e);
             }
+            return;
         }
 
         // 1. Tratamento da Seleção de Indicação
@@ -111,6 +114,7 @@ export default {
             } catch (e) {
                 console.error('[ERRO] No tratamento de seleção de indicação:', e);
             }
+            return;
         }
 
         // --- SISTEMA DE LIVE (INTERAÇÕES) ---
@@ -122,6 +126,7 @@ export default {
             } catch (e) {
                 console.error('[ERRO] Ao alternar sistema de live:', e);
             }
+            return;
         }
 
         if (interaction.isButton() && interaction.customId === 'set_live_role') {
@@ -158,6 +163,7 @@ export default {
             } catch (e) {
                 console.error('[ERRO] Ao abrir gerenciamento de streamers:', e);
             }
+            return;
         }
 
         if (interaction.isUserSelectMenu() && interaction.customId === 'add_streamer_live') {
@@ -176,6 +182,7 @@ export default {
             } catch (e) {
                 console.error('[ERRO] Ao adicionar streamer:', e);
             }
+            return;
         }
 
         if (interaction.isButton() && interaction.customId === 'clear_streamers') {
@@ -192,14 +199,15 @@ export default {
             } catch (e) {
                 console.error('[ERRO] No botão sem indicação:', e);
             }
+            return;
         }
 
         // 3. Submissão de Modal
         if (interaction.isModalSubmit() && interaction.customId.startsWith('registro_modal')) {
-            try {
-                // Deferir o MAIS RÁPIDO POSSÍVEL
-                await interaction.deferReply({ ephemeral: true }).catch(() => null);
+            // Deferir o MAIS RÁPIDO POSSÍVEL para evitar timeouts de 3s
+            await interaction.deferReply({ ephemeral: true }).catch(() => null);
 
+            try {
                 const indicatorId = interaction.customId.split(':')[1];
                 const nome = interaction.fields.getTextInputValue('nome_completo');
                 const discordId = interaction.fields.getTextInputValue('id_discord');

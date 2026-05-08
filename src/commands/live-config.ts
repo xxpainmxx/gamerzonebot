@@ -22,15 +22,6 @@ export default {
 
         const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
             new ButtonBuilder()
-                .setCustomId('toggle_live_system')
-                .setLabel(isEnabled ? 'Desativar Sistema' : 'Ativar Sistema')
-                .setStyle(isEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
-            new ButtonBuilder()
-                .setCustomId('set_live_role')
-                .setLabel('Configurar Cargo')
-                .setStyle(ButtonStyle.Primary)
-                .setEmoji('🛡️'),
-            new ButtonBuilder()
                 .setCustomId('manage_streamers')
                 .setLabel('Gerenciar Streamers')
                 .setStyle(ButtonStyle.Secondary)
