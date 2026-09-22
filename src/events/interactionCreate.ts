@@ -26,7 +26,13 @@ export default {
             // Se for o comando /registro, usamos a lógica customizada de indicação
             if (interaction.commandName === 'registro') {
                 try {
-                    await interaction.deferReply({ ephemeral: true }).catch(() => null);
+                    if (!interaction.deferred && !interaction.replied) {
+                        await interaction.deferReply({ ephemeral: true }).catch(() => null);
+                    }
+
+                    if (!interaction.deferred && !interaction.replied) {
+                        return;
+                    }
 
                     const status = await db.get(`registro_${interaction.user.id}`);
                     if (status) {
@@ -50,9 +56,11 @@ export default {
                     return await interaction.editReply({
                         content: '✨ **ETAPA 1:** Quem te indicou para o servidor?',
                         components: [rowSelect, rowButton]
-                    }).catch((e: any) => console.error('[ERRO] Ao iniciar indicação:', e));
-                } catch (e) {
-                    console.error('[ERRO] No fluxo inicial de registro:', e);
+                    }).catch((e: any) => {
+                        if (e?.code !== 10062) console.error('[ERRO] Ao iniciar indicação:', e);
+                    });
+                } catch (e: any) {
+                    if (e?.code !== 10062) console.error('[ERRO] No fluxo inicial de registro:', e);
                 }
                 return;
             }
@@ -63,7 +71,8 @@ export default {
 
             try {
                 await command.execute(interaction);
-            } catch (error) {
+            } catch (error: any) {
+                if (error?.code === 10062) return;
                 console.error(`[ERRO] Comando ${interaction.commandName}:`, error);
                 if (interaction.replied || interaction.deferred) {
                     await interaction.followUp({ content: 'Ocorreu um erro ao executar este comando!', ephemeral: true }).catch(() => null);
@@ -77,7 +86,13 @@ export default {
         // 2. Botão de "Fazer Registro" (Landing Page)
         if (interaction.isButton() && interaction.customId === 'open_register_modal') {
             try {
-                await interaction.deferReply({ ephemeral: true }).catch(() => null);
+                if (!interaction.deferred && !interaction.replied) {
+                    await interaction.deferReply({ ephemeral: true }).catch(() => null);
+                }
+
+                if (!interaction.deferred && !interaction.replied) {
+                    return;
+                }
 
                 const status = await db.get(`registro_${interaction.user.id}`);
                 if (status) {
@@ -101,9 +116,11 @@ export default {
                 return await interaction.editReply({
                     content: '✨ **ETAPA 1:** Quem te indicou para o servidor?',
                     components: [rowSelect, rowButton]
-                }).catch((e: any) => console.error('[ERRO] Ao iniciar indicação:', e));
-            } catch (e) {
-                console.error('[ERRO] No fluxo inicial de registro:', e);
+                }).catch((e: any) => {
+                    if (e?.code !== 10062) console.error('[ERRO] Ao iniciar indicação:', e);
+                });
+            } catch (e: any) {
+                if (e?.code !== 10062) console.error('[ERRO] No fluxo inicial de registro:', e);
             }
             return;
         }
@@ -124,9 +141,11 @@ export default {
                 const modal = ModalHelper.createRegisterModal(interaction.user.id);
                 modal.setCustomId(`registro_modal:${selectedUserId}`); 
                 
-                return await interaction.showModal(modal).catch((e: any) => console.error('[ERRO] Ao mostrar modal (com indicação):', e));
-            } catch (e) {
-                console.error('[ERRO] No tratamento de seleção de indicação:', e);
+                return await interaction.showModal(modal).catch((e: any) => {
+                    if (e?.code !== 10062) console.error('[ERRO] Ao mostrar modal (com indicação):', e);
+                });
+            } catch (e: any) {
+                if (e?.code !== 10062) console.error('[ERRO] No tratamento de seleção de indicação:', e);
             }
             return;
         }
@@ -155,7 +174,7 @@ export default {
                     .setTitle('👥 Gerenciamento de Streamers')
                     .setDescription(`Aqui você pode adicionar ou remover os criadores de conteúdo que serão monitorados pelo bot.
                     
-**Usuários Monitorados:** ${streamers.length > 0 ? streamers.map((id: string) => `<@${id}>`).join(', ') : 'Nenhum'}`)
+**Usuários Monitorados:** ${Array.isArray(streamers) && streamers.length > 0 ? streamers.map((id: string) => `<@${id}>`).join(', ') : 'Nenhum'}`)
                     .setColor(config.colors.main as any);
 
                 const addSelect = new UserSelectMenuBuilder()
@@ -183,7 +202,8 @@ export default {
         if (interaction.isUserSelectMenu() && interaction.customId === 'add_streamer_live') {
             try {
                 const targetId = interaction.values[0];
-                let streamers = await db.get(`streamers_${interaction.guildId}`) || [];
+                let streamers = await db.get(`streamers_${interaction.guildId}`);
+                if (!Array.isArray(streamers)) streamers = streamers ? [streamers] : [];
                 
                 if (streamers.includes(targetId)) {
                     return interaction.reply({ content: '❌ Este usuário já está na lista!', ephemeral: true }).catch(() => null);
@@ -193,7 +213,8 @@ export default {
                 await db.set(`streamers_${interaction.guildId}`, streamers);
 
                 return interaction.reply({ content: `✅ <@${targetId}> foi adicionado à lista de monitoramento de Live!`, ephemeral: true }).catch(() => null);
-            } catch (e) {
+            } catch (e: any) {
+                if (e?.code === 10062) return;
                 console.error('[ERRO] Ao adicionar streamer:', e);
             }
             return;
@@ -209,9 +230,11 @@ export default {
             try {
                 const modal = ModalHelper.createRegisterModal(interaction.user.id);
                 modal.setCustomId('registro_modal:none');
-                return await interaction.showModal(modal).catch((e: any) => console.error('[ERRO] Ao mostrar modal (sem indicação):', e));
-            } catch (e) {
-                console.error('[ERRO] No botão sem indicação:', e);
+                return await interaction.showModal(modal).catch((e: any) => {
+                    if (e?.code !== 10062) console.error('[ERRO] Ao mostrar modal (sem indicação):', e);
+                });
+            } catch (e: any) {
+                if (e?.code !== 10062) console.error('[ERRO] No botão sem indicação:', e);
             }
             return;
         }

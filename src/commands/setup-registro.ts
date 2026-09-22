@@ -8,7 +8,14 @@ export default {
         .setDescription('Envia o painel de registro oficial no canal configurado.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     async execute(interaction: CommandInteraction) {
-        await interaction.deferReply({ ephemeral: true });
+        if (!interaction.deferred && !interaction.replied) {
+            try {
+                await interaction.deferReply({ ephemeral: true });
+            } catch (err: any) {
+                if (err.code === 10062) return;
+                throw err;
+            }
+        }
         
         try {
             // Limpamos o ID anterior para forçar o RegistrationSystem a enviar uma nova mensagem
@@ -16,10 +23,15 @@ export default {
             
             await RegistrationSystem.init(interaction.client);
             
-            await interaction.editReply({ content: '✅ Painel de registro enviado com sucesso!' });
-        } catch (error) {
+            if (interaction.deferred || interaction.replied) {
+                await interaction.editReply({ content: '✅ Painel de registro enviado com sucesso!' }).catch(() => null);
+            }
+        } catch (error: any) {
+            if (error?.code === 10062) return;
             console.error('[ERRO] Ao executar setup-registro:', error);
-            await interaction.editReply({ content: '❌ Ocorreu um erro ao enviar o painel de registro.' });
+            if (interaction.deferred || interaction.replied) {
+                await interaction.editReply({ content: '❌ Ocorreu um erro ao enviar o painel de registro.' }).catch(() => null);
+            }
         }
     }
 };
