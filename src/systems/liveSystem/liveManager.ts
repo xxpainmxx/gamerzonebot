@@ -3,17 +3,30 @@ import db from '../../database/db.ts';
 import config from '../../config/config.json' assert { type: 'json' };
 
 export class LiveManager {
+    private static isChecking = false;
+
     /**
      * Inicia o loop de verificação de Live
      */
     static async startMonitoring(client: Client) {
         setInterval(async () => {
-            const isEnabled = await db.get('live_system_enabled') ?? config.liveSystem.enabled;
-            if (!isEnabled) return;
+            if (this.isChecking) return;
+            this.isChecking = true;
 
-            client.guilds.cache.forEach(guild => {
-                this.checkGuildLives(guild);
-            });
+            try {
+                const isEnabled = await db.get('live_system_enabled') ?? config.liveSystem.enabled;
+                if (!isEnabled) return;
+
+                for (const guild of client.guilds.cache.values()) {
+                    await this.checkGuildLives(guild).catch((err) => {
+                        console.error(`[LIVE] Erro ao checar lives na guilda ${guild.name}:`, err);
+                    });
+                }
+            } catch (e) {
+                console.error('[LIVE] Erro no loop de monitoramento:', e);
+            } finally {
+                this.isChecking = false;
+            }
         }, config.liveSystem.checkInterval);
     }
 

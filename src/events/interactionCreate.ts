@@ -4,6 +4,20 @@ import config from '../config/config.json' assert { type: 'json' };
 import { CanvasHelper } from '../utils/canvasHelper.ts';
 import { ModalHelper } from '../utils/modalHelper.ts';
 
+// Lock em memória (evita I/O de disco no SQLite e previne memory leak com timeout automático)
+const activeLocks = new Set<string>();
+
+const acquireLock = (key: string, ttlMs = 10000): boolean => {
+    if (activeLocks.has(key)) return false;
+    activeLocks.add(key);
+    setTimeout(() => activeLocks.delete(key), ttlMs).unref();
+    return true;
+};
+
+const releaseLock = (key: string) => {
+    activeLocks.delete(key);
+};
+
 export default {
     name: Events.InteractionCreate,
     async execute(interaction: Interaction) {
@@ -208,22 +222,20 @@ export default {
             await interaction.deferReply({ ephemeral: true }).catch(() => null);
 
             try {
-                // 🛑 LOCK DE SEGURANÇA: Evitar cliques duplos ou multi-processamento
-                const lockKey = `processing_modal_${interaction.user.id}`;
-                const isProcessing = await db.get(lockKey);
-                if (isProcessing) return; // Já está processando
-                await db.set(lockKey, true); // lock
+                // 🛑 LOCK DE SEGURANÇA: Evitar cliques duplos ou multi-processamento em memória
+                const lockKey = `modal_${interaction.user.id}`;
+                if (!acquireLock(lockKey)) return;
 
                 // Verificar se já está registrado ou tem pendência
                 const status = await db.get(`registro_${interaction.user.id}`);
                 if (status) {
-                    await db.delete(lockKey);
+                    releaseLock(lockKey);
                     return interaction.editReply({ content: 'Você já possui um registro aprovado!' }).catch(() => null);
                 }
 
                 const pendenteCheck = await db.get(`pendente_${interaction.user.id}`);
                 if (pendenteCheck) {
-                    await db.delete(lockKey);
+                    releaseLock(lockKey);
                     return interaction.editReply({ content: '⏳ Você já possui uma solicitação pendente aguardando aprovação.' }).catch(() => null);
                 }
 
@@ -254,7 +266,7 @@ export default {
                 const canalAprovacao = interaction.client.channels.cache.get(config.channels.register) as TextChannel;
                 if (!canalAprovacao) {
                     await db.delete(`pendente_${interaction.user.id}`); // Reverter se der erro
-                    await db.delete(lockKey);
+                    releaseLock(lockKey);
                     return interaction.editReply({ content: 'Erro interno: Canal de aprovação não configurado.' }).catch(() => null);
                 }
 
@@ -288,11 +300,11 @@ export default {
                 await interaction.editReply({ content: '✅ Seu formulário foi enviado com sucesso! Aguarde a aprovação da staff.' }).catch(() => null);
                 
                 // Liberar lock após sucesso
-                await db.delete(lockKey);
+                releaseLock(lockKey);
 
             } catch (error: any) {
                 console.error(`[ERRO] No processamento de modal:`, error);
-                await db.delete(`processing_modal_${interaction.user.id}`).catch(() => null);
+                releaseLock(`modal_${interaction.user.id}`);
                 if (interaction.deferred || interaction.replied) {
                     await interaction.editReply({ content: 'Ocorreu um erro ao processar seu registro.' }).catch(() => null);
                 }
@@ -308,23 +320,22 @@ export default {
 
             if (action !== 'aprovar' && action !== 'reprovar') return;
 
+            const lockKey = `staff_${userId}`;
             try {
-                // LOCK DE SEGURANÇA PARA STAFF
-                const lockKey = `processing_staff_${userId}`;
-                if (await db.get(lockKey)) return;
-                await db.set(lockKey, true);
+                // LOCK DE SEGURANÇA PARA STAFF EM MEMÓRIA
+                if (!acquireLock(lockKey)) return;
 
                 // Deferir atualização IMEDIATAMENTE
                 await interaction.deferUpdate().catch(() => null);
 
                 if (!(interaction.member as any).permissions.has('ManageRoles')) {
-                    await db.delete(lockKey);
+                    releaseLock(lockKey);
                     return interaction.followUp({ content: 'Você não tem permissão para gerenciar registros!', ephemeral: true }).catch(() => null);
                 }
 
                 const pendente = await db.get(`pendente_${userId}`);
                 if (!pendente) {
-                    await db.delete(lockKey);
+                    releaseLock(lockKey);
                     return interaction.editReply({ content: '❌ Este registro já foi processado ou expirou.', embeds: [], components: [] }).catch(() => null);
                 }
 
@@ -333,7 +344,7 @@ export default {
 
                 const targetUser = await interaction.client.users.fetch(userId).catch(() => null);
                 if (!targetUser) {
-                    await db.delete(lockKey);
+                    releaseLock(lockKey);
                     return interaction.editReply({ content: '❌ Usuário não encontrado no Discord.', embeds: [], components: [] }).catch(() => null);
                 }
 
@@ -382,10 +393,10 @@ export default {
                     await interaction.editReply({ content: `❌ Registro de ${targetUser.tag} reprovado por ${interaction.user.tag}`, embeds: [], components: [] }).catch(() => null);
                 }
 
-                await db.delete(lockKey);
+                releaseLock(lockKey);
             } catch (error) {
                 console.error('[ERRO] No processamento de botões staff:', error);
-                await db.delete(`processing_staff_${userId}`).catch(() => null);
+                releaseLock(lockKey);
             }
             return;
         }

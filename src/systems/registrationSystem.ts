@@ -31,10 +31,10 @@ export class RegistrationSystem {
             }
         }
 
-        // Gerar Banner Canvas
+        // Gerar Banner Canvas (com avatar otimizado em memória)
         const bannerBuffer = await CanvasHelper.createRegisterBanner(
             channel.guild.name, 
-            client.user!.displayAvatarURL({ extension: 'png', size: 512 })
+            client.user!.displayAvatarURL({ extension: 'png', size: 256 })
         );
         const attachment = new AttachmentBuilder(bannerBuffer, { name: 'register-banner.png' });
 

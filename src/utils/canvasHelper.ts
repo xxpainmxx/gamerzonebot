@@ -26,9 +26,15 @@ export class CanvasHelper {
         ctx.fillRect(0, 0, 10, height);
         ctx.fillRect(width - 10, 0, 10, height);
 
-        // Avatar Circular
+        // Avatar Circular (com fallback seguro contra erros de rede)
         const avatarUrl = member instanceof User ? member.displayAvatarURL({ extension: 'png', size: 256 }) : member.user.displayAvatarURL({ extension: 'png', size: 256 });
-        const avatar = await loadImage(avatarUrl);
+        let avatar;
+        try {
+            avatar = await loadImage(avatarUrl);
+        } catch {
+            const fallbackUrl = (member instanceof User ? member : member.user).defaultAvatarURL;
+            avatar = await loadImage(fallbackUrl);
+        }
         
         ctx.save();
         ctx.beginPath();
@@ -81,8 +87,13 @@ export class CanvasHelper {
         ctx.fillStyle = status === 'APROVADO' ? '#57F287' : '#ED4245';
         ctx.fillRect(0, 0, 15, height);
 
-        // Avatar
-        const avatar = await loadImage(user.displayAvatarURL({ extension: 'png', size: 128 }));
+        // Avatar (com fallback)
+        let avatar;
+        try {
+            avatar = await loadImage(user.displayAvatarURL({ extension: 'png', size: 128 }));
+        } catch {
+            avatar = await loadImage(user.defaultAvatarURL);
+        }
         ctx.save();
         ctx.beginPath();
         ctx.arc(100, height / 2, 60, 0, Math.PI * 2, true);
@@ -147,14 +158,21 @@ export class CanvasHelper {
         ctx.stroke();
         ctx.shadowBlur = 0;
 
-        // Bot Avatar
-        const avatar = await loadImage(botAvatarUrl);
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(width / 2, 140, 80, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.drawImage(avatar, (width / 2) - 80, 60, 160, 160);
-        ctx.restore();
+        // Bot Avatar (com fallback seguro)
+        let avatar;
+        try {
+            avatar = await loadImage(botAvatarUrl);
+        } catch {
+            avatar = null;
+        }
+        if (avatar) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(width / 2, 140, 80, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.drawImage(avatar, (width / 2) - 80, 60, 160, 160);
+            ctx.restore();
+        }
 
         // Texto
         ctx.textAlign = 'center';
